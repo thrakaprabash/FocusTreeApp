@@ -1,0 +1,39 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Expo
+.expo/
+.expo-shared/
+
+# Android
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+*.keystore
+*.jks
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+
+# Env files
+.env
+.env.*
+
+# Misc
+*.log
+*.hprof
+
+# Web/Export
+dist/
+web-build/
+
+# EAS & Credentials
+*.pem
+*.p8
+*.mobileprovision
+local.env
