@@ -69,7 +69,6 @@ const makeStyles = (t) => StyleSheet.create({
   modalTitle:    { fontSize: 18, fontWeight: "800", color: t.text },
   modalCloseBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: t.bgInput, alignItems: "center", justifyContent: "center" },
 
-  // Appearance section
   appearanceLabel: { fontSize: 12, fontWeight: "700", color: t.textMuted, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 8, marginTop: 4 },
   themeRow:        { flexDirection: "row", gap: 8, marginBottom: 16 },
   themeChip:       { flex: 1, paddingVertical: 9, borderRadius: 12, borderWidth: 1.5, borderColor: t.border, backgroundColor: t.bgInput, alignItems: "center" },

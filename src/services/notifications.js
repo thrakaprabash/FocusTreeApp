@@ -24,7 +24,11 @@ export const configureNotifications = async () => {
     }
 
     if (Platform.OS === "android") {
-      // HIGH importance = heads-up banner + sound + vibration
+      // HIGH importance = heads-up banner + system notification sound + vibration
+      // Using "default" so the phone's ringer mode is respected:
+      //   - Normal mode  → plays the phone's notification ringtone
+      //   - Vibrate mode → vibrates only (no sound)
+      //   - Silent mode  → completely silent
       await Notifications.setNotificationChannelAsync("task-reminders", {
         name:              "Task Reminders",
         importance:        Notifications.AndroidImportance.HIGH,
@@ -41,7 +45,7 @@ export const configureNotifications = async () => {
         importance:       Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 500, 200, 500, 200, 500],
         lightColor:       "#4ade80",
-        sound:            "default",
+        sound:            "alarm.mp3",  // timer is intentional alarm, always plays
         enableVibrate:    true,
         showBadge:        false
       });
@@ -52,17 +56,21 @@ export const configureNotifications = async () => {
 };
 
 // ─── Internal helper ──────────────────────────────────────────────────────────
-const scheduleAt = async ({ title, body, date, channelId = "task-reminders" }) => {
+const scheduleAt = async ({ title, body, date, channelId = "task-reminders", data = {} }) => {
   try {
     return await Notifications.scheduleNotificationAsync({
       content: {
         title,
         body,
-        sound:     "default",   // plays default system notification sound
-        priority:  "high",
+        sound:    "default",  // respects phone ringer/vibrate/silent mode
+        priority: "high",
+        data: { channelId, ...data },
         ...(Platform.OS === "android" ? { channelId } : {})
       },
-      trigger: date
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date
+      }
     });
   } catch (e) {
     console.warn("[notifications] schedule skipped:", e?.message);
@@ -72,33 +80,24 @@ const scheduleAt = async ({ title, body, date, channelId = "task-reminders" }) =
 
 // ─── Task notifications ───────────────────────────────────────────────────────
 export const scheduleTaskNotifications = async (task) => {
-  if (!task.dueAt) return [];
+  const reminders = task.reminders;
+  if (!Array.isArray(reminders) || reminders.length === 0) return [];
 
   try {
-    const dueDate = new Date(task.dueAt);
-    if (Number.isNaN(dueDate.getTime())) return [];
-
+    const now = Date.now();
     const ids = [];
-    const now     = Date.now();
-    const dueTime = dueDate.getTime();
-    const earlyTime = dueTime - 60 * 60 * 1000; // 1 hour before
 
-    if (earlyTime > now) {
-      const earlyId = await scheduleAt({
-        title: "⏰ Task due in 1 hour",
-        body:  `"${task.title}" is due soon`,
-        date:  new Date(earlyTime)
-      });
-      if (earlyId) ids.push(earlyId);
-    }
+    for (const reminderISO of reminders) {
+      const reminderDate = new Date(reminderISO);
+      if (isNaN(reminderDate.getTime())) continue;
+      if (reminderDate.getTime() <= now) continue;
 
-    if (dueTime > now) {
-      const dueId = await scheduleAt({
-        title: "🔔 Task due now",
-        body:  `"${task.title}" deadline has arrived`,
-        date:  dueDate
+      const id = await scheduleAt({
+        title: "⏰ Task Reminder",
+        body:  `"${task.title}"`,
+        date:  reminderDate
       });
-      if (dueId) ids.push(dueId);
+      if (id) ids.push(id);
     }
 
     return ids;

@@ -35,21 +35,46 @@ const formatDateDisplay = (date) => {
   return date.toLocaleDateString(undefined, options);
 };
 
-const buildDueAt = (date) => {
+const formatTimeDisplay = (date) => {
   if (!date) return null;
-  const localEndOfDay = new Date(
+  return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+};
+
+const formatReminderDisplay = (isoString) => {
+  const d = new Date(isoString);
+  const dateStr = d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  const timeStr = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return `${dateStr}  ·  ${timeStr}`;
+};
+
+const buildDueAt = (date, time) => {
+  if (!date) return null;
+  const d = new Date(
     date.getFullYear(),
     date.getMonth(),
     date.getDate(),
-    23, 59, 0, 0
+    time ? time.getHours()   : 23,
+    time ? time.getMinutes() : 59,
+    0,
+    0
   );
-  return localEndOfDay.toISOString();
+  return d.toISOString();
 };
 
 const parseDueDate = (dueAt) => {
   if (!dueAt) return null;
   const d = new Date(dueAt);
   return isNaN(d.getTime()) ? null : d;
+};
+
+// Returns a Date representing the time portion of dueAt, or null if it was end-of-day (23:59)
+const parseDueTime = (dueAt) => {
+  if (!dueAt) return null;
+  const d = new Date(dueAt);
+  if (isNaN(d.getTime())) return null;
+  // If it was stored as end-of-day default, treat as no specific time set
+  if (d.getHours() === 23 && d.getMinutes() === 59) return null;
+  return d;
 };
 
 const parseTimeString = (timeStr) => {
@@ -92,12 +117,19 @@ export default function EditTaskModal({ visible, task, onClose }) {
   const [title,          setTitle]          = useState("");
   const [notes,          setNotes]          = useState("");
   const [priority,       setPriority]       = useState("medium");
-  const [dueDate,        setDueDate]        = useState(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [isDaily,        setIsDaily]        = useState(false);
-  const [dailyTime,      setDailyTime]      = useState(null);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [saved,          setSaved]          = useState(false);
+  const [dueDate,            setDueDate]            = useState(null);
+  const [dueTime,            setDueTime]            = useState(null);
+  const [showDatePicker,     setShowDatePicker]     = useState(false);
+  const [showDueTimePicker,  setShowDueTimePicker]  = useState(false);
+  const [isDaily,            setIsDaily]            = useState(false);
+  const [dailyTime,          setDailyTime]          = useState(null);
+  const [showTimePicker,     setShowTimePicker]     = useState(false);
+  const [saved,              setSaved]              = useState(false);
+  // ── Manual reminders ──────────────────────────────────────────────────────
+  const [reminders,              setReminders]              = useState([]);
+  const [pendingReminderDate,    setPendingReminderDate]    = useState(null);
+  const [showReminderDatePicker, setShowReminderDatePicker] = useState(false);
+  const [showReminderTimePicker, setShowReminderTimePicker] = useState(false);
 
   // ── Sheet slide-up animation ─────────────────────────────────────────────────
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -142,10 +174,16 @@ export default function EditTaskModal({ visible, task, onClose }) {
       setNotes(task.notes || "");
       setPriority(task.priority || "medium");
       setDueDate(parseDueDate(task.dueAt));
+      setDueTime(parseDueTime(task.dueAt));
       setIsDaily(Boolean(task.isDaily));
       setDailyTime(parseTimeString(task.dailyTime));
+      setReminders(Array.isArray(task.reminders) ? task.reminders : []);
       setShowDatePicker(false);
+      setShowDueTimePicker(false);
       setShowTimePicker(false);
+      setShowReminderDatePicker(false);
+      setShowReminderTimePicker(false);
+      setPendingReminderDate(null);
       setSaved(false);
     }
   }, [task]);
@@ -155,6 +193,43 @@ export default function EditTaskModal({ visible, task, onClose }) {
     if (Platform.OS !== "ios") setShowDatePicker(false);
     if (event?.type === "dismissed") return;
     if (selectedDate) setDueDate(selectedDate);
+  };
+
+  const handleDueTimeChange = (event, selectedTime) => {
+    if (Platform.OS !== "ios") setShowDueTimePicker(false);
+    if (event?.type === "dismissed") return;
+    if (selectedTime) setDueTime(selectedTime);
+  };
+
+  // ── Reminder pickers (2-step: date → time) ────────────────────────────────
+  const handleReminderDatePick = (event, selectedDate) => {
+    if (Platform.OS !== "ios") setShowReminderDatePicker(false);
+    if (event?.type === "dismissed") return;
+    if (selectedDate) {
+      setPendingReminderDate(selectedDate);
+      setShowReminderTimePicker(true);
+    }
+  };
+
+  const handleReminderTimePick = (event, selectedTime) => {
+    if (Platform.OS !== "ios") setShowReminderTimePicker(false);
+    if (event?.type === "dismissed") { setPendingReminderDate(null); return; }
+    if (selectedTime && pendingReminderDate) {
+      const reminder = new Date(
+        pendingReminderDate.getFullYear(),
+        pendingReminderDate.getMonth(),
+        pendingReminderDate.getDate(),
+        selectedTime.getHours(),
+        selectedTime.getMinutes(),
+        0, 0
+      );
+      setReminders((prev) => [...prev, reminder.toISOString()]);
+      setPendingReminderDate(null);
+    }
+  };
+
+  const removeReminder = (index) => {
+    setReminders((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleTimeChange = (event, selectedTime) => {
@@ -177,9 +252,10 @@ export default function EditTaskModal({ visible, task, onClose }) {
       title: trimmed,
       notes: notes.trim(),
       priority,
-      dueAt: buildDueAt(dueDate),
+      dueAt: buildDueAt(dueDate, dueTime),
       isDaily,
-      dailyTime: isDaily && dailyTime ? formatDailyTime(dailyTime) : ""
+      dailyTime: isDaily && dailyTime ? formatDailyTime(dailyTime) : "",
+      reminders
     };
 
     await updateTask(task.id, changes);
@@ -192,7 +268,10 @@ export default function EditTaskModal({ visible, task, onClose }) {
 
   const handleClose = () => {
     setShowDatePicker(false);
+    setShowDueTimePicker(false);
     setShowTimePicker(false);
+    setShowReminderDatePicker(false);
+    setShowReminderTimePicker(false);
     onClose();
   };
 
@@ -298,13 +377,15 @@ export default function EditTaskModal({ visible, task, onClose }) {
               </View>
             </View>
 
-            {/* ── Due Date ── */}
+            {/* ── Due Date & Time ── */}
             <View style={styles.card}>
-              <SectionLabel icon="calendar-outline" text="Due Date" />
+              <SectionLabel icon="calendar-outline" text="Due Date & Time" />
+
+              {/* Date row */}
               <View style={styles.dateRow}>
                 <TouchableOpacity
                   style={[styles.dateButton, dueDate && styles.dateButtonActive]}
-                  onPress={() => setShowDatePicker((v) => !v)}
+                  onPress={() => { setShowDueTimePicker(false); setShowDatePicker((v) => !v); }}
                   activeOpacity={0.8}
                 >
                   <Ionicons
@@ -318,7 +399,7 @@ export default function EditTaskModal({ visible, task, onClose }) {
                   </Text>
                 </TouchableOpacity>
                 {dueDate && (
-                  <TouchableOpacity style={styles.clearBtn} onPress={() => setDueDate(null)}>
+                  <TouchableOpacity style={styles.clearBtn} onPress={() => { setDueDate(null); setDueTime(null); }}>
                     <Ionicons name="close-circle" size={20} color={theme.textMuted} />
                   </TouchableOpacity>
                 )}
@@ -330,6 +411,86 @@ export default function EditTaskModal({ visible, task, onClose }) {
                   display={Platform.OS === "ios" ? "spinner" : "default"}
                   onChange={handleDateChange}
                   minimumDate={new Date()}
+                />
+              )}
+
+              {/* Time row — only shown after date is chosen */}
+              {dueDate && (
+                <View style={[styles.dateRow, { marginTop: 10 }]}>
+                  <TouchableOpacity
+                    style={[styles.dateButton, dueTime && styles.dateButtonActive]}
+                    onPress={() => { setShowDatePicker(false); setShowDueTimePicker((v) => !v); }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name="time-outline"
+                      size={16}
+                      color={dueTime ? theme.green : theme.textMuted}
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text style={dueTime ? styles.dateText : styles.datePlaceholder}>
+                      {dueTime ? formatTimeDisplay(dueTime) : "Set time (optional)"}
+                    </Text>
+                  </TouchableOpacity>
+                  {dueTime && (
+                    <TouchableOpacity style={styles.clearBtn} onPress={() => setDueTime(null)}>
+                      <Ionicons name="close-circle" size={20} color={theme.textMuted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+              {showDueTimePicker && (
+                <DateTimePicker
+                  value={dueTime ?? new Date()}
+                  mode="time"
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  onChange={handleDueTimeChange}
+                />
+              )}
+            </View>
+
+            {/* ── Reminders ── */}
+            <View style={styles.card}>
+              <SectionLabel icon="notifications-outline" text="Reminders" />
+
+              {reminders.length > 0 && (
+                <View style={styles.remindersList}>
+                  {reminders.map((iso, index) => (
+                    <View key={index} style={styles.reminderItem}>
+                      <Ionicons name="alarm-outline" size={14} color={theme.green} style={{ marginRight: 8 }} />
+                      <Text style={styles.reminderItemText}>{formatReminderDisplay(iso)}</Text>
+                      <TouchableOpacity onPress={() => removeReminder(index)} style={styles.reminderDelete}>
+                        <Ionicons name="close-circle" size={18} color={theme.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={styles.addReminderBtn}
+                onPress={() => setShowReminderDatePicker(true)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="add" size={16} color={theme.green} style={{ marginRight: 6 }} />
+                <Text style={styles.addReminderText}>Add Reminder</Text>
+              </TouchableOpacity>
+
+              {showReminderDatePicker && (
+                <DateTimePicker
+                  value={pendingReminderDate ?? new Date()}
+                  mode="date"
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  onChange={handleReminderDatePick}
+                  minimumDate={new Date()}
+                />
+              )}
+              {showReminderTimePicker && (
+                <DateTimePicker
+                  value={new Date()}
+                  mode="time"
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  onChange={handleReminderTimePick}
                 />
               )}
             </View>
@@ -464,7 +625,14 @@ const makeStyles = (t) => StyleSheet.create({
   saveBtn:         { backgroundColor: t.green, borderRadius: 16, paddingVertical: 16, marginTop: 4, shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 5 },
   saveBtnDisabled: { backgroundColor: t.textMuted, shadowOpacity: 0 },
   saveBtnInner:    { flexDirection: "row", alignItems: "center", justifyContent: "center" },
-  saveBtnText:     { color: "#ffffff", fontSize: 16, fontWeight: "800", letterSpacing: -0.2 }
+  saveBtnText:     { color: "#ffffff", fontSize: 16, fontWeight: "800", letterSpacing: -0.2 },
+
+  remindersList:    { marginBottom: 10, gap: 6 },
+  reminderItem:     { flexDirection: "row", alignItems: "center", backgroundColor: t.greenSoft, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, borderWidth: 1, borderColor: t.greenMid },
+  reminderItemText: { flex: 1, fontSize: 13, fontWeight: "600", color: t.green },
+  reminderDelete:   { padding: 2, marginLeft: 4 },
+  addReminderBtn:   { flexDirection: "row", alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderStyle: "dashed", borderColor: t.greenMid, borderRadius: 10, paddingVertical: 11, marginTop: 2 },
+  addReminderText:  { fontSize: 14, fontWeight: "600", color: t.green }
 });
 
 const lightStyles = makeStyles(LIGHT);

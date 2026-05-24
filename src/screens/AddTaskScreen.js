@@ -25,18 +25,30 @@ const formatDateDisplay = (date) => {
   return date.toLocaleDateString(undefined, options);
 };
 
-const buildDueAt = (date) => {
+const formatTimeDisplay = (date) => {
   if (!date) return null;
-  const localEndOfDay = new Date(
+  return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+};
+
+const formatReminderDisplay = (isoString) => {
+  const d = new Date(isoString);
+  const dateStr = d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  const timeStr = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return `${dateStr}  ·  ${timeStr}`;
+};
+
+const buildDueAt = (date, time) => {
+  if (!date) return null;
+  const d = new Date(
     date.getFullYear(),
     date.getMonth(),
     date.getDate(),
-    23,
-    59,
+    time ? time.getHours()   : 23,
+    time ? time.getMinutes() : 59,
     0,
     0
   );
-  return localEndOfDay.toISOString();
+  return d.toISOString();
 };
 
 const PRIORITIES = [
@@ -69,12 +81,19 @@ export default function AddTaskScreen() {
   const [title,          setTitle]          = useState("");
   const [notes,          setNotes]          = useState("");
   const [priority,       setPriority]       = useState("medium");
-  const [dueDate,        setDueDate]        = useState(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [isDaily,        setIsDaily]        = useState(false);
-  const [dailyTime,      setDailyTime]      = useState(null);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [submitted,      setSubmitted]      = useState(false);
+  const [dueDate,            setDueDate]            = useState(null);
+  const [dueTime,            setDueTime]            = useState(null);
+  const [showDatePicker,     setShowDatePicker]     = useState(false);
+  const [showDueTimePicker,      setShowDueTimePicker]      = useState(false);
+  const [isDaily,                setIsDaily]                = useState(false);
+  const [dailyTime,              setDailyTime]              = useState(null);
+  const [showTimePicker,         setShowTimePicker]         = useState(false);
+  const [submitted,              setSubmitted]              = useState(false);
+  // ── Manual reminders ──────────────────────────────────────────────────────
+  const [reminders,              setReminders]              = useState([]);
+  const [pendingReminderDate,    setPendingReminderDate]    = useState(null);
+  const [showReminderDatePicker, setShowReminderDatePicker] = useState(false);
+  const [showReminderTimePicker, setShowReminderTimePicker] = useState(false);
 
   // Button press animation
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -86,7 +105,14 @@ export default function AddTaskScreen() {
     if (selectedDate) setDueDate(selectedDate);
   };
 
-  const handleClearDate = () => setDueDate(null);
+  const handleClearDate = () => { setDueDate(null); setDueTime(null); };
+
+  // ── Due time picker ────────────────────────────────────────────────────────
+  const handleDueTimeChange = (event, selectedTime) => {
+    if (Platform.OS !== "ios") setShowDueTimePicker(false);
+    if (event?.type === "dismissed") return;
+    if (selectedTime) setDueTime(selectedTime);
+  };
 
   // ── Daily time picker ──────────────────────────────────────────────────────
   const handleTimeChange = (event, selectedTime) => {
@@ -100,6 +126,38 @@ export default function AddTaskScreen() {
     return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
   };
 
+  // ── Reminder pickers (2-step: date → time) ────────────────────────────────
+  const handleReminderDatePick = (event, selectedDate) => {
+    if (Platform.OS !== "ios") setShowReminderDatePicker(false);
+    if (event?.type === "dismissed") return;
+    if (selectedDate) {
+      setPendingReminderDate(selectedDate);
+      // Immediately open time picker after date is chosen
+      setShowReminderTimePicker(true);
+    }
+  };
+
+  const handleReminderTimePick = (event, selectedTime) => {
+    if (Platform.OS !== "ios") setShowReminderTimePicker(false);
+    if (event?.type === "dismissed") { setPendingReminderDate(null); return; }
+    if (selectedTime && pendingReminderDate) {
+      const reminder = new Date(
+        pendingReminderDate.getFullYear(),
+        pendingReminderDate.getMonth(),
+        pendingReminderDate.getDate(),
+        selectedTime.getHours(),
+        selectedTime.getMinutes(),
+        0, 0
+      );
+      setReminders((prev) => [...prev, reminder.toISOString()]);
+      setPendingReminderDate(null);
+    }
+  };
+
+  const removeReminder = (index) => {
+    setReminders((prev) => prev.filter((_, i) => i !== index));
+  };
+
 
 
   // ── Submit ─────────────────────────────────────────────────────────────────
@@ -110,8 +168,8 @@ export default function AddTaskScreen() {
       return;
     }
 
-    // Store end-of-day local time so "due today" does not become overdue.
-    const dueAt = buildDueAt(dueDate);
+    // Build dueAt using user-selected time, or end-of-day if no time was set.
+    const dueAt = buildDueAt(dueDate, dueTime);
 
     // Button press animation
     Animated.sequence([
@@ -127,7 +185,8 @@ export default function AddTaskScreen() {
         dueAt,
         xpValue: XP_PER_TASK,
         isDaily,
-        dailyTime: isDaily && dailyTime ? formatDailyTime(dailyTime) : ""
+        dailyTime: isDaily && dailyTime ? formatDailyTime(dailyTime) : "",
+        reminders
       });
     } catch (e) {
       console.error("[AddTaskScreen] addTask failed:", e);
@@ -143,10 +202,16 @@ export default function AddTaskScreen() {
     setNotes("");
     setPriority("medium");
     setDueDate(null);
+    setDueTime(null);
     setShowDatePicker(false);
+    setShowDueTimePicker(false);
     setIsDaily(false);
     setDailyTime(null);
     setShowTimePicker(false);
+    setReminders([]);
+    setPendingReminderDate(null);
+    setShowReminderDatePicker(false);
+    setShowReminderTimePicker(false);
   };
 
   const selectedPriority = PRIORITIES.find((p) => p.value === priority);
@@ -228,13 +293,15 @@ export default function AddTaskScreen() {
           </View>
         </View>
 
-        {/* ── Due Date ── */}
+        {/* ── Due Date & Time ── */}
         <View style={styles.card}>
-          <SectionLabel icon="calendar-outline" text="Due Date" />
+          <SectionLabel icon="calendar-outline" text="Due Date & Time" />
+
+          {/* Date row */}
           <View style={styles.dateRow}>
             <TouchableOpacity
               style={[styles.dateButton, dueDate && styles.dateButtonActive]}
-              onPress={() => setShowDatePicker((v) => !v)}
+              onPress={() => { setShowDueTimePicker(false); setShowDatePicker((v) => !v); }}
               activeOpacity={0.8}
             >
               <Ionicons
@@ -260,6 +327,86 @@ export default function AddTaskScreen() {
               display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={handleDateChange}
               minimumDate={new Date()}
+            />
+          )}
+
+          {/* Time row — only shown after date is chosen */}
+          {dueDate && (
+            <View style={[styles.dateRow, { marginTop: 10 }]}>
+              <TouchableOpacity
+                style={[styles.dateButton, dueTime && styles.dateButtonActive]}
+                onPress={() => { setShowDatePicker(false); setShowDueTimePicker((v) => !v); }}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="time-outline"
+                  size={16}
+                  color={dueTime ? theme.green : theme.textMuted}
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={dueTime ? styles.dateText : styles.datePlaceholder}>
+                  {dueTime ? formatTimeDisplay(dueTime) : "Set time (optional)"}
+                </Text>
+              </TouchableOpacity>
+              {dueTime && (
+                <TouchableOpacity style={styles.clearBtn} onPress={() => setDueTime(null)}>
+                  <Ionicons name="close-circle" size={20} color="#9f9b93" />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+          {showDueTimePicker && (
+            <DateTimePicker
+              value={dueTime ?? new Date()}
+              mode="time"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={handleDueTimeChange}
+            />
+          )}
+        </View>
+
+        {/* ── Reminders ── */}
+        <View style={styles.card}>
+          <SectionLabel icon="notifications-outline" text="Reminders" />
+
+          {reminders.length > 0 && (
+            <View style={styles.remindersList}>
+              {reminders.map((iso, index) => (
+                <View key={index} style={styles.reminderItem}>
+                  <Ionicons name="alarm-outline" size={14} color={theme.green} style={{ marginRight: 8 }} />
+                  <Text style={styles.reminderItemText}>{formatReminderDisplay(iso)}</Text>
+                  <TouchableOpacity onPress={() => removeReminder(index)} style={styles.reminderDelete}>
+                    <Ionicons name="close-circle" size={18} color={theme.textMuted} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={styles.addReminderBtn}
+            onPress={() => setShowReminderDatePicker(true)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={16} color={theme.green} style={{ marginRight: 6 }} />
+            <Text style={styles.addReminderText}>Add Reminder</Text>
+          </TouchableOpacity>
+
+          {showReminderDatePicker && (
+            <DateTimePicker
+              value={pendingReminderDate ?? new Date()}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={handleReminderDatePick}
+              minimumDate={new Date()}
+            />
+          )}
+          {showReminderTimePicker && (
+            <DateTimePicker
+              value={new Date()}
+              mode="time"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={handleReminderTimePick}
             />
           )}
         </View>
@@ -404,7 +551,14 @@ const makeStyles = (t) => StyleSheet.create({
   submitXpTag:  { marginLeft: 10, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
   submitXpText: { color: "#ffffff", fontSize: 11, fontWeight: "700" },
 
-  priorityHint: { textAlign: "center", fontSize: 12, color: t.textMuted, marginBottom: 4 }
+  priorityHint: { textAlign: "center", fontSize: 12, color: t.textMuted, marginBottom: 4 },
+
+  remindersList:    { marginBottom: 10, gap: 6 },
+  reminderItem:     { flexDirection: "row", alignItems: "center", backgroundColor: t.greenSoft, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, borderWidth: 1, borderColor: t.greenMid },
+  reminderItemText: { flex: 1, fontSize: 13, fontWeight: "600", color: t.green },
+  reminderDelete:   { padding: 2, marginLeft: 4 },
+  addReminderBtn:   { flexDirection: "row", alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderStyle: "dashed", borderColor: t.greenMid, borderRadius: 10, paddingVertical: 11, marginTop: 2 },
+  addReminderText:  { fontSize: 14, fontWeight: "600", color: t.green }
 });
 
 const lightStyles = makeStyles(LIGHT);

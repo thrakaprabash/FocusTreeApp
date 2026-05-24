@@ -1,12 +1,13 @@
 import "expo-dev-client";
 import "react-native-gesture-handler";
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { StyleSheet, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import * as Notifications from "expo-notifications";
 import HomeScreen from "./src/screens/TasksScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import AddTaskScreen from "./src/screens/AddTaskScreen";
@@ -23,9 +24,28 @@ const Tab = createBottomTabNavigator();
 function AppNavigator() {
   const { theme, isDark } = useTheme();
 
+  const notificationListener = useRef();
+
   useEffect(() => {
     configureNotifications();
     initAudio();
+
+    // Keep a listener so we can respond to notifications received while the
+    // app is in the foreground. The system plays the channel's default sound
+    // automatically (respecting ringer / vibrate / silent modes) via
+    // setNotificationHandler({ shouldPlaySound: true }) in notifications.js.
+    // No custom expo-av sound is played here — that would bypass ringer mode.
+    notificationListener.current = Notifications.addNotificationReceivedListener(
+      (_notification) => {
+        // Future: update badge count, refresh task list, etc.
+      }
+    );
+
+    return () => {
+      if (notificationListener.current) {
+        Notifications.removeNotificationSubscription(notificationListener.current);
+      }
+    };
   }, []);
 
   return (

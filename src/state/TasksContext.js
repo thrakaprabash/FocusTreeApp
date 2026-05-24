@@ -28,6 +28,7 @@ const buildTask = (draft) => ({
   completedAt: null,
   penalized: false,
   notificationIds: [],
+  reminders: Array.isArray(draft.reminders) ? draft.reminders : [],
   createdAt: new Date().toISOString()
 });
 

@@ -8,8 +8,8 @@
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "resizeMode": "cover",
+      "backgroundColor": "#1a4a2e"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -18,7 +18,7 @@
       "package": "com.tharakaprabash.focustree",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#fbfbf7"
+        "backgroundColor": "#1a4a2e"
       },
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
@@ -43,7 +43,8 @@
           "icon": "./assets/notification-icon.png",
           "color": "#2b7a3d",
           "sounds": [
-            "./src/assets/alarm.mp3"
+            "./src/assets/alarm.mp3",
+            "./assets/alarm.mp3"
           ]
         }
       ],
