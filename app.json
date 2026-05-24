@@ -24,12 +24,15 @@
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.POST_NOTIFICATIONS",
-        "android.permission.VIBRATE"
+        "android.permission.VIBRATE",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "ios": {
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "plugins": [
@@ -39,7 +42,9 @@
         {
           "icon": "./assets/notification-icon.png",
           "color": "#2b7a3d",
-          "sounds": ["./src/assets/alarm.mp3"]
+          "sounds": [
+            "./src/assets/alarm.mp3"
+          ]
         }
       ],
       [
@@ -48,6 +53,11 @@
           "microphonePermission": false
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "db42c476-e86e-4300-81a0-9356f702e3ea"
+      }
+    }
   }
 }
