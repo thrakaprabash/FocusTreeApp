@@ -20,16 +20,17 @@ const PRIORITY_COLORS_DARK = {
 
 const makeStyles = (t) => StyleSheet.create({
   card: { backgroundColor: t.bgInput, borderRadius: 14, padding: 16, marginBottom: 12, overflow: "hidden" },
-  cardDone: { opacity: 0.72, borderWidth: 1, borderColor: t.greenMid },
+  cardDone: { opacity: 0.6, backgroundColor: t.bgHero, borderWidth: 1, borderColor: t.borderLight },
   cardPenalized: { borderWidth: 1, borderColor: t.dangerBorder, backgroundColor: t.dangerSoft },
 
-  stripDone:      { position: "absolute", left: 0, top: 0, bottom: 0, width: 4, backgroundColor: t.green },
   stripPenalized: { position: "absolute", left: 0, top: 0, bottom: 0, width: 4, backgroundColor: t.danger },
 
   rowBetween: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8 },
-  title:      { flex: 1, fontSize: 15, fontWeight: "700", color: t.text, lineHeight: 21 },
+  title:      { flex: 1, fontSize: 16, fontWeight: "600", color: t.text, lineHeight: 22 },
   titleDone:  { textDecorationLine: "line-through", color: t.textMuted },
-  xp:         { fontSize: 13, fontWeight: "700", color: t.green, marginTop: 2 },
+  
+  badgesRight: { alignItems: "flex-end", gap: 4 },
+  xp:         { fontSize: 13, fontWeight: "700", color: t.green },
   xpDone:     { color: t.textMuted },
 
   overdueRow:    { marginTop: 6, marginBottom: 2 },
@@ -39,17 +40,23 @@ const makeStyles = (t) => StyleSheet.create({
   priorityBadge:     { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   priorityBadgeText: { fontSize: 10, fontWeight: "700" },
 
-  notes: { fontSize: 12, color: t.textSub, marginTop: 5, lineHeight: 17, fontStyle: "italic" },
-  meta:    { fontSize: 12, color: t.textSub, marginTop: 4 },
+  notes: { fontSize: 13, color: t.textSub, marginTop: 6, lineHeight: 18 },
+  
+  metaRow: { flexDirection: "row", alignItems: "center", marginTop: 8, gap: 8, flexWrap: "wrap" },
+  meta:    { fontSize: 12, color: t.textMuted },
   metaRed: { color: t.danger },
-  daily:   { fontSize: 12, fontWeight: "600", color: t.green, marginTop: 4 },
+  daily:   { fontSize: 12, fontWeight: "600", color: t.blue },
 
-  actions:       { flexDirection: "row", flexWrap: "wrap", marginTop: 10, gap: 8 },
-  actionComplete: { flexDirection: "row", alignItems: "center", backgroundColor: t.green, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8 },
-  actionEdit:     { flexDirection: "row", alignItems: "center", backgroundColor: t.greenSoft, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1.5, borderColor: t.greenMid },
-  actionEditText: { color: t.green, fontSize: 12, fontWeight: "700" },
-  actionDelete:   { flexDirection: "row", alignItems: "center", backgroundColor: t.textMuted, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8 },
-  actionText:     { color: "#ffffff", fontSize: 12, fontWeight: "700" }
+  actionsContainer: { flexDirection: "row", alignItems: "center", marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderColor: t.borderLight, gap: 8 },
+  
+  btnComplete: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: t.green, paddingVertical: 8, borderRadius: 8 },
+  btnCompleteText: { color: "#fff", fontSize: 13, fontWeight: "700", marginLeft: 4 },
+
+  btnEdit: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: t.greenSoft, borderWidth: 1, borderColor: t.greenMid, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8 },
+  btnEditText: { color: t.green, fontSize: 13, fontWeight: "600", marginLeft: 4 },
+
+  btnDelete: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: t.dangerSoft, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 },
+  btnDeleteText: { color: t.danger, fontSize: 13, fontWeight: "600", marginLeft: 4 }
 });
 
 const lightStyles = makeStyles(LIGHT);
@@ -58,6 +65,7 @@ const darkStyles  = makeStyles(DARK);
 export default function TaskItem({ task, onComplete, onDelete }) {
   const { isDark } = useTheme();
   const styles = isDark ? darkStyles : lightStyles;
+  const colors = isDark ? DARK : LIGHT;
   const priorityColors = isDark ? PRIORITY_COLORS_DARK : PRIORITY_COLORS;
 
   const isCompleted = Boolean(task.completedAt);
@@ -67,12 +75,11 @@ export default function TaskItem({ task, onComplete, onDelete }) {
   return (
     <>
       <View style={[styles.card, isCompleted && styles.cardDone, isPenalized && styles.cardPenalized]}>
-        {isCompleted && <View style={styles.stripDone} />}
         {isPenalized && <View style={styles.stripPenalized} />}
 
         <View style={styles.rowBetween}>
           <Text style={[styles.title, isCompleted && styles.titleDone]} numberOfLines={2}>{task.title}</Text>
-          <View style={{ alignItems: "flex-end", gap: 4 }}>
+          <View style={styles.badgesRight}>
             <Text style={[styles.xp, isCompleted && styles.xpDone]}>+{task.xpValue} XP</Text>
             {task.priority && priorityColors[task.priority] && (
               <View style={[styles.priorityBadge, { backgroundColor: priorityColors[task.priority].bg }]}>
@@ -94,25 +101,27 @@ export default function TaskItem({ task, onComplete, onDelete }) {
 
         {task.notes ? <Text style={styles.notes} numberOfLines={2}>{task.notes}</Text> : null}
 
-        <Text style={[styles.meta, isPenalized && styles.metaRed]}>{formatDateTime(task.dueAt)}</Text>
-        {task.isDaily && <Text style={styles.daily}>🔁 Daily task</Text>}
+        <View style={styles.metaRow}>
+          <Text style={[styles.meta, isPenalized && styles.metaRed]}>{formatDateTime(task.dueAt)}</Text>
+          {task.isDaily && <Text style={styles.daily}>· 🔁 Daily task</Text>}
+        </View>
 
-        <View style={styles.actions}>
+        <View style={[styles.actionsContainer, isCompleted && { justifyContent: "flex-end", borderTopWidth: 0, paddingTop: 0 }]} >
           {!isCompleted && (
-            <TouchableOpacity style={styles.actionComplete} onPress={onComplete}>
-              <Ionicons name="checkmark" size={13} color="#fff" style={{ marginRight: 4 }} />
-              <Text style={styles.actionText}>Complete</Text>
+            <TouchableOpacity style={styles.btnComplete} onPress={onComplete}>
+              <Ionicons name="checkmark-circle" size={16} color="#fff" />
+              <Text style={styles.btnCompleteText}>Complete</Text>
             </TouchableOpacity>
           )}
           {!isCompleted && (
-            <TouchableOpacity style={styles.actionEdit} onPress={() => setEditVisible(true)}>
-              <Ionicons name="create-outline" size={13} color={isDark ? DARK.green : LIGHT.green} style={{ marginRight: 4 }} />
-              <Text style={styles.actionEditText}>Edit</Text>
+            <TouchableOpacity style={styles.btnEdit} onPress={() => setEditVisible(true)}>
+              <Ionicons name="create-outline" size={16} color={colors.green} />
+              <Text style={styles.btnEditText}>Edit</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity style={styles.actionDelete} onPress={onDelete}>
-            <Ionicons name="trash-outline" size={13} color="#fff" style={{ marginRight: 4 }} />
-            <Text style={styles.actionText}>Delete</Text>
+          <TouchableOpacity style={styles.btnDelete} onPress={onDelete}>
+            <Ionicons name="trash-outline" size={16} color={colors.danger} />
+            {isCompleted && <Text style={styles.btnDeleteText}>Delete Task</Text>}
           </TouchableOpacity>
         </View>
       </View>
