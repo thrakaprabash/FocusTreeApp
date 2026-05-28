@@ -138,3 +138,35 @@ export const fireTimerDoneNotification = async () => {
     console.warn("[notifications] fireTimerDoneNotification skipped:", e?.message);
   }
 };
+
+// ─── Schedule future "timer done" notification ────────────────────────────────
+export const scheduleTimerDoneNotification = async (date, title = "🌳 Timer Complete!", body = "Your focus session is done. Great work!") => {
+  try {
+    return await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        sound: "default",
+        priority: "max",
+        ...(Platform.OS === "android" ? { channelId: "timer-done" } : {})
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date
+      }
+    });
+  } catch (e) {
+    console.warn("[notifications] scheduleTimerDoneNotification skipped:", e?.message);
+    return null;
+  }
+};
+
+// ─── Cancel future timer notification ─────────────────────────────────────────
+export const cancelTimerNotification = async (id) => {
+  if (!id) return;
+  try {
+    await Notifications.cancelScheduledNotificationAsync(id);
+  } catch (e) {
+    console.warn("[notifications] cancelTimerNotification skipped:", e?.message);
+  }
+};

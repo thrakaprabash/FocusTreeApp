@@ -8,12 +8,13 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  AppState
 } from "react-native";
 import TreeDisplay from "../components/TreeDisplay";
 import { getTreeStage, TREE_STAGES } from "../data/treeStages";
 import { useTheme, LIGHT, DARK } from "../state/ThemeContext";
-import { fireTimerDoneNotification } from "../services/notifications";
+import { fireTimerDoneNotification, scheduleTimerDoneNotification, cancelTimerNotification } from "../services/notifications";
 import { playAlarmSound, stopAlarmSound } from "../services/sound";
 
 
@@ -122,6 +123,24 @@ export default function TimerScreen() {
 
   const growAnim    = useRef(new Animated.Value(1)).current;
   const intervalRef = useRef(null);
+  const appState = useRef(AppState.currentState);
+  const backgroundTime = useRef(null);
+  const notificationIdRef = useRef(null);
+
+  const scheduleBg = async (secs) => {
+    if (notificationIdRef.current) {
+      await cancelTimerNotification(notificationIdRef.current);
+    }
+    const finishDate = new Date(Date.now() + secs * 1000);
+    notificationIdRef.current = await scheduleTimerDoneNotification(finishDate);
+  };
+
+  const cancelBg = async () => {
+    if (notificationIdRef.current) {
+      await cancelTimerNotification(notificationIdRef.current);
+      notificationIdRef.current = null;
+    }
+  };
 
   const totalStages  = TREE_STAGES.length;
   const currentStage = getTreeStage(treeStageIndex);
@@ -158,6 +177,26 @@ export default function TimerScreen() {
     return () => { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; } };
   }, [isRunning]);
 
+  // ── Handle backgrounding ────────────────────────────────────────────────────
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", nextAppState => {
+      if (appState.current.match(/inactive|background/) && nextAppState === "active") {
+        if (backgroundTime.current && isRunning) {
+          const elapsed = Math.floor((Date.now() - backgroundTime.current) / 1000);
+          if (elapsed > 0) {
+            setRemainingSeconds((prev) => Math.max(0, prev - elapsed));
+          }
+        }
+      } else if (appState.current === "active" && nextAppState.match(/inactive|background/)) {
+        if (isRunning) {
+          backgroundTime.current = Date.now();
+        }
+      }
+      appState.current = nextAppState;
+    });
+    return () => subscription.remove();
+  }, [isRunning]);
+
   // ── Tree growth + completion ─────────────────────────────────────────────────
   useEffect(() => {
     if (!started || totalSeconds === 0) return;
@@ -175,6 +214,7 @@ export default function TimerScreen() {
 
     if (remainingSeconds === 0 && elapsedNow > 0) {
       setTreeStageIndex(totalStages - 1);
+      cancelBg();
       // 🔔 Play alarm sound + send notification
       playAlarm();
       fireTimerDoneNotification();
@@ -193,14 +233,24 @@ export default function TimerScreen() {
     if (secs <= 0) { Alert.alert("Invalid time", "Please enter at least 1 second."); return; }
     setTotalSeconds(secs); setRemainingSeconds(secs);
     setTreeStageIndex(0); setStarted(true); setIsRunning(true);
+    scheduleBg(secs);
   };
 
-  const handlePause  = () => setIsRunning(false);
-  const handleResume = () => { if (remainingSeconds > 0) setIsRunning(true); };
+  const handlePause  = () => {
+    setIsRunning(false);
+    cancelBg();
+  };
+  const handleResume = () => {
+    if (remainingSeconds > 0) {
+      setIsRunning(true);
+      scheduleBg(remainingSeconds);
+    }
+  };
   const handleReset  = () => {
     stopAlarm();
     setIsRunning(false); setStarted(false);
     setRemainingSeconds(0); setTotalSeconds(0); setTreeStageIndex(0);
+    cancelBg();
   };
 
   const PRESETS = [
