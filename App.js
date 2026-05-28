@@ -6,7 +6,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Notifications from "expo-notifications";
 import HomeScreen from "./src/screens/TasksScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
@@ -23,6 +23,7 @@ const Tab = createBottomTabNavigator();
 // Inner component so it can call useTheme (must be inside ThemeProvider)
 function AppNavigator() {
   const { theme, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const notificationListener = useRef();
 
@@ -56,9 +57,9 @@ function AppNavigator() {
           screenOptions={({ route }) => ({
             headerTitleAlign: "center",
             tabBarStyle: {
-              height: 70,
+              height: 70 + insets.bottom,
               paddingTop: 6,
-              paddingBottom: 8,
+              paddingBottom: 8 + insets.bottom,
               borderTopColor: theme.tabBorder,
               borderTopWidth: 1,
               backgroundColor: theme.tabBg,
