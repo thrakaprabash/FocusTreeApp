@@ -198,7 +198,7 @@ export default function WheelPicker({ items, selectedValue, onValueChange, width
 const styles = StyleSheet.create({
   container: {
     borderRadius: 16,
-    borderWidth: 1.5,
+    borderWidth: 1,
     overflow: 'hidden',
     position: 'relative'
   },

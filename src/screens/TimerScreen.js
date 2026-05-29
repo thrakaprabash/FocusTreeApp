@@ -39,6 +39,19 @@ const fmtInterval = (secs) => {
   return `${secs.toFixed(2)} sec`;
 };
 
+const fmtFriendlyDuration = (secs) => {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  
+  const parts = [];
+  if (h > 0) parts.push(`${h} hr`);
+  if (m > 0) parts.push(`${m} min`);
+  if (s > 0 || parts.length === 0) parts.push(`${s} sec`);
+  
+  return parts.join(' ');
+};
+
 const HOURS_ITEMS = Array.from({ length: 24 }, (_, i) => ({ label: String(i).padStart(2, '0'), value: String(i) }));
 const MINUTES_ITEMS = Array.from({ length: 60 }, (_, i) => ({ label: String(i).padStart(2, '0'), value: String(i) }));
 const SECONDS_ITEMS = Array.from({ length: 60 }, (_, i) => ({ label: String(i).padStart(2, '0'), value: String(i) }));
@@ -53,7 +66,7 @@ const makeStyles = (t) => StyleSheet.create({
   headerSub:   { fontSize: 14, color: t.textSub, marginTop: 4, fontWeight: "500" },
 
   card: {
-    backgroundColor: t.bgCard, borderRadius: 24, padding: 20,
+    backgroundColor: t.bgCard, borderRadius: 28, padding: 28,
     shadowColor: "#000", shadowOpacity: 0.07, shadowRadius: 14,
     shadowOffset: { width: 0, height: 4 }, elevation: 4
   },
@@ -62,14 +75,14 @@ const makeStyles = (t) => StyleSheet.create({
     letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 10
   },
 
-  presetRow:        { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 4 },
+  presetRow:        { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 4, justifyContent: "center" },
   presetChip:       { paddingHorizontal: 13, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, borderColor: t.greenMid, backgroundColor: t.greenSoft },
   presetChipActive: { backgroundColor: t.green, borderColor: t.green },
   presetChipText:   { fontSize: 13, fontWeight: "700", color: t.green },
   presetChipTextActive: { color: "#ffffff" },
 
-  hmsRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 16 },
-  hmsColon:  { fontSize: 24, fontWeight: "800", color: t.border, marginHorizontal: 2, paddingBottom: 4 },
+  hmsRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 10, marginBottom: 24 },
+  hmsColon:  { fontSize: 28, fontWeight: "800", color: t.textMuted, marginHorizontal: 4, paddingBottom: 6 },
 
   infoBox:     { backgroundColor: t.greenSoft, borderRadius: 14, borderWidth: 1, borderColor: t.greenMid, padding: 14, marginBottom: 20 },
   infoRow:     { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
@@ -77,7 +90,7 @@ const makeStyles = (t) => StyleSheet.create({
   infoKey:     { fontSize: 13, fontWeight: "600", color: t.textSub },
   infoVal:     { fontSize: 13, fontWeight: "800", color: t.green },
 
-  startBtn:         { backgroundColor: t.green, borderRadius: 16, paddingVertical: 16, alignItems: "center", shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 5 },
+  startBtn:         { backgroundColor: t.green, borderRadius: 16, paddingVertical: 16, alignItems: "center", shadowColor: t.green, shadowOpacity: 0.35, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
   startBtnDisabled: { backgroundColor: t.greenMid, shadowOpacity: 0 },
   startBtnText:     { color: "#ffffff", fontSize: 17, fontWeight: "800", letterSpacing: 0.3 },
 
@@ -292,7 +305,7 @@ export default function TimerScreen() {
             })}
           </View>
 
-          <Text style={[styles.cardLabel, { marginTop: 16 }]}>Custom Duration</Text>
+          <Text style={[styles.cardLabel, { marginTop: 24, marginBottom: 14 }]}>Custom Duration</Text>
           <View style={styles.hmsRow}>
             <WheelPicker items={HOURS_ITEMS} selectedValue={inputH} onValueChange={setInputH} unit="h" width={86} />
             <Text style={styles.hmsColon}>:</Text>
@@ -305,7 +318,7 @@ export default function TimerScreen() {
             <View style={styles.infoBox}>
               <View style={styles.infoRow}>
                 <Text style={styles.infoKey}>Total duration</Text>
-                <Text style={styles.infoVal}>{previewTotal} seconds</Text>
+                <Text style={styles.infoVal}>{fmtFriendlyDuration(previewTotal)}</Text>
               </View>
               <View style={styles.infoDivider} />
               <View style={styles.infoRow}>
