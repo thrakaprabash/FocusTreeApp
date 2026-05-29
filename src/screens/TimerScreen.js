@@ -12,6 +12,7 @@ import {
   AppState
 } from "react-native";
 import TreeDisplay from "../components/TreeDisplay";
+import WheelPicker from "../components/WheelPicker";
 import { getTreeStage, TREE_STAGES } from "../data/treeStages";
 import { useTheme, LIGHT, DARK } from "../state/ThemeContext";
 import { fireTimerDoneNotification, scheduleTimerDoneNotification, cancelTimerNotification } from "../services/notifications";
@@ -38,6 +39,10 @@ const fmtInterval = (secs) => {
   return `${secs.toFixed(2)} sec`;
 };
 
+const HOURS_ITEMS = Array.from({ length: 24 }, (_, i) => ({ label: String(i).padStart(2, '0'), value: String(i) }));
+const MINUTES_ITEMS = Array.from({ length: 60 }, (_, i) => ({ label: String(i).padStart(2, '0'), value: String(i) }));
+const SECONDS_ITEMS = Array.from({ length: 60 }, (_, i) => ({ label: String(i).padStart(2, '0'), value: String(i) }));
+
 // ─── styles ───────────────────────────────────────────────────────────────────
 const makeStyles = (t) => StyleSheet.create({
   scroll:     { flex: 1, backgroundColor: t.bg },
@@ -63,11 +68,8 @@ const makeStyles = (t) => StyleSheet.create({
   presetChipText:   { fontSize: 13, fontWeight: "700", color: t.green },
   presetChipTextActive: { color: "#ffffff" },
 
-  hmsRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, marginBottom: 16 },
-  hmsField: { flex: 1, alignItems: "center", backgroundColor: t.bgInput, borderRadius: 14, borderWidth: 1.5, borderColor: t.border, paddingVertical: 10, paddingHorizontal: 6 },
-  hmsInput:  { fontSize: 32, fontWeight: "800", color: t.text, textAlign: "center", width: "100%" },
-  hmsUnit:   { fontSize: 12, fontWeight: "700", color: t.textMuted, marginTop: 2 },
-  hmsColon:  { fontSize: 28, fontWeight: "800", color: t.border, marginHorizontal: 2 },
+  hmsRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 16 },
+  hmsColon:  { fontSize: 24, fontWeight: "800", color: t.border, marginHorizontal: 2, paddingBottom: 4 },
 
   infoBox:     { backgroundColor: t.greenSoft, borderRadius: 14, borderWidth: 1, borderColor: t.greenMid, padding: 14, marginBottom: 20 },
   infoRow:     { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
@@ -292,15 +294,11 @@ export default function TimerScreen() {
 
           <Text style={[styles.cardLabel, { marginTop: 16 }]}>Custom Duration</Text>
           <View style={styles.hmsRow}>
-            {[{ val: inputH, set: setInputH, unit: "h" }, { val: inputM, set: setInputM, unit: "m" }, { val: inputS, set: setInputS, unit: "s" }].map(({ val, set, unit }, i) => (
-              <React.Fragment key={unit}>
-                {i > 0 && <Text style={styles.hmsColon}>:</Text>}
-                <View style={styles.hmsField}>
-                  <TextInput style={styles.hmsInput} value={val} onChangeText={set} keyboardType="number-pad" maxLength={2} selectTextOnFocus />
-                  <Text style={styles.hmsUnit}>{unit}</Text>
-                </View>
-              </React.Fragment>
-            ))}
+            <WheelPicker items={HOURS_ITEMS} selectedValue={inputH} onValueChange={setInputH} unit="h" width={86} />
+            <Text style={styles.hmsColon}>:</Text>
+            <WheelPicker items={MINUTES_ITEMS} selectedValue={inputM} onValueChange={setInputM} unit="m" width={86} />
+            <Text style={styles.hmsColon}>:</Text>
+            <WheelPicker items={SECONDS_ITEMS} selectedValue={inputS} onValueChange={setInputS} unit="s" width={86} />
           </View>
 
           {previewTotal > 0 && (

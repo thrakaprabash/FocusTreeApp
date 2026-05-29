@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   FlatList,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -97,7 +98,7 @@ export default function HomeScreen() {
   const [statusFilter,   setStatusFilter]   = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [sortBy,         setSortBy]         = useState("default");
-  const [sortOpen,       setSortOpen]       = useState(false);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -172,110 +173,76 @@ export default function HomeScreen() {
     setSortBy("default");
   };
 
-  // ── Filter/Sort bar (part of header) ──────────────────────────────────────
-  const filterBar = (
-    <View style={styles.filterSection}>
-
-      {/* Row 1: Status chips + Sort button */}
-      <View style={styles.filterTopRow}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipsScroll}
-        >
-          {STATUS_FILTERS.map(f => (
-            <Chip
-              key={f.key}
-              label={f.label}
-              active={statusFilter === f.key}
-              onPress={() => setStatusFilter(f.key)}
-            />
-          ))}
-        </ScrollView>
-
-        {/* Sort button */}
-        <TouchableOpacity
-          style={[styles.sortBtn, sortBy !== "default" && styles.sortBtnActive]}
-          onPress={() => setSortOpen(v => !v)}
-          activeOpacity={0.8}
-        >
-          <Ionicons
-            name={currentSort.icon}
-            size={14}
-            color={sortBy !== "default" ? theme.green : theme.textSub}
-          />
-          <Text style={[styles.sortBtnText, sortBy !== "default" && styles.sortBtnTextActive]}>
-            {sortBy !== "default" ? currentSort.label : "Sort"}
-          </Text>
-          <Ionicons
-            name={sortOpen ? "chevron-up" : "chevron-down"}
-            size={12}
-            color={sortBy !== "default" ? theme.green : theme.textMuted}
-          />
-        </TouchableOpacity>
-      </View>
-
-      {/* Sort dropdown */}
-      {sortOpen && (
-        <View style={styles.sortDropdown}>
-          {SORT_OPTIONS.map(opt => (
-            <TouchableOpacity
-              key={opt.key}
-              style={[styles.sortOption, sortBy === opt.key && styles.sortOptionActive]}
-              onPress={() => { setSortBy(opt.key); setSortOpen(false); }}
-              activeOpacity={0.75}
-            >
-              <Ionicons
-                name={opt.icon}
-                size={15}
-                color={sortBy === opt.key ? theme.green : theme.textSub}
-                style={{ marginRight: 8 }}
-              />
-              <Text style={[styles.sortOptionText, sortBy === opt.key && styles.sortOptionTextActive]}>
-                {opt.label}
-              </Text>
-              {sortBy === opt.key && (
-                <Ionicons name="checkmark" size={14} color={theme.green} style={{ marginLeft: "auto" }} />
-              )}
+  // ── Filter/Sort Modal ───────────────────────────────────────────────────────
+  const filterModal = (
+    <Modal
+      visible={isFilterModalOpen}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => setIsFilterModalOpen(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Filter & Sort</Text>
+            <TouchableOpacity onPress={() => setIsFilterModalOpen(false)}>
+              <Ionicons name="close" size={24} color={theme.textMuted} />
             </TouchableOpacity>
-          ))}
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScroll}>
+            <Text style={styles.modalSectionTitle}>Sort By</Text>
+            <View style={styles.modalChipsWrap}>
+              {SORT_OPTIONS.map(opt => (
+                <Chip
+                  key={opt.key}
+                  label={opt.label}
+                  active={sortBy === opt.key}
+                  onPress={() => setSortBy(opt.key)}
+                />
+              ))}
+            </View>
+
+            <Text style={styles.modalSectionTitle}>Status</Text>
+            <View style={styles.modalChipsWrap}>
+              {STATUS_FILTERS.map(f => (
+                <Chip
+                  key={f.key}
+                  label={f.label}
+                  active={statusFilter === f.key}
+                  onPress={() => setStatusFilter(f.key)}
+                />
+              ))}
+            </View>
+
+            <Text style={styles.modalSectionTitle}>Priority</Text>
+            <View style={styles.modalChipsWrap}>
+              {PRIORITY_FILTERS.map(f => {
+                const colors = { high: "#e63946", medium: "#f4a261", low: "#3a86ff", all: "#2b7a3d" };
+                return (
+                  <Chip
+                    key={f.key}
+                    label={f.label}
+                    active={priorityFilter === f.key}
+                    onPress={() => setPriorityFilter(f.key)}
+                    color={colors[f.key]}
+                  />
+                );
+              })}
+            </View>
+          </ScrollView>
+
+          <View style={styles.modalFooter}>
+            <TouchableOpacity style={styles.modalClearBtn} onPress={resetFilters} activeOpacity={0.8}>
+              <Text style={styles.modalClearText}>Clear All</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalApplyBtn} onPress={() => setIsFilterModalOpen(false)} activeOpacity={0.8}>
+              <Text style={styles.modalApplyText}>Show {filteredAndSorted.length} Task{filteredAndSorted.length !== 1 ? 's' : ''}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      )}
-
-      {/* Row 2: Priority chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[styles.chipsScroll, { marginTop: 8 }]}
-      >
-        {PRIORITY_FILTERS.map(f => {
-          const colors = { high: "#e63946", medium: "#f4a261", low: "#3a86ff", all: "#2b7a3d" };
-          return (
-            <Chip
-              key={f.key}
-              label={f.label}
-              active={priorityFilter === f.key}
-              onPress={() => setPriorityFilter(f.key)}
-              color={colors[f.key]}
-            />
-          );
-        })}
-      </ScrollView>
-
-      {/* Results row */}
-      <View style={styles.resultsRow}>
-        <Text style={styles.resultsText}>
-          {filteredAndSorted.length} task{filteredAndSorted.length !== 1 ? "s" : ""}
-          {activeFiltersCount > 0 ? " matched" : ""}
-        </Text>
-        {activeFiltersCount > 0 && (
-          <TouchableOpacity onPress={resetFilters} style={styles.clearFiltersBtn}>
-            <Ionicons name="close-circle" size={13} color={theme.textMuted} style={{ marginRight: 3 }} />
-            <Text style={styles.clearFiltersText}>Clear filters</Text>
-          </TouchableOpacity>
-        )}
       </View>
-    </View>
+    </Modal>
   );
 
   // ── Header ─────────────────────────────────────────────────────────────────
@@ -330,17 +297,39 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Section title + filter bar */}
-      <View style={styles.sectionTitleRow}>
-        <Text style={styles.sectionTitle}>Your Tasks</Text>
-        {activeFiltersCount > 0 && (
-          <View style={styles.activeBadge}>
-            <Text style={styles.activeBadgeText}>{activeFiltersCount} active</Text>
-          </View>
-        )}
+      {/* Section title + open filter button */}
+      <View style={[styles.sectionTitleRow, { justifyContent: "space-between", marginBottom: activeFiltersCount > 0 ? 6 : 10 }]}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text style={styles.sectionTitle}>Your Tasks</Text>
+          {activeFiltersCount > 0 && (
+            <View style={styles.activeBadge}>
+              <Text style={styles.activeBadgeText}>{activeFiltersCount}</Text>
+            </View>
+          )}
+        </View>
+
+        <TouchableOpacity
+          style={styles.openFilterBtn}
+          onPress={() => setIsFilterModalOpen(true)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="options" size={14} color={theme.green} />
+          <Text style={styles.openFilterText}>Filter & Sort</Text>
+        </TouchableOpacity>
       </View>
 
-      {filterBar}
+      {/* Results row (visible if filters are active) */}
+      {activeFiltersCount > 0 && (
+        <View style={styles.resultsRow}>
+          <Text style={styles.resultsText}>
+            {filteredAndSorted.length} task{filteredAndSorted.length !== 1 ? "s" : ""} matched
+          </Text>
+          <TouchableOpacity onPress={resetFilters} style={styles.clearFiltersBtn}>
+            <Ionicons name="close-circle" size={13} color={theme.textMuted} style={{ marginRight: 3 }} />
+            <Text style={styles.clearFiltersText}>Clear</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 
@@ -371,22 +360,25 @@ export default function HomeScreen() {
   );
 
   return (
-    <FlatList
-      data={filteredAndSorted}
-      keyExtractor={(item) => item.id}
-      style={{ flex: 1, backgroundColor: styles.list.backgroundColor }}
-      contentContainerStyle={styles.list}
-      showsVerticalScrollIndicator={false}
-      ListHeaderComponent={header}
-      renderItem={({ item }) => (
-        <TaskItem
-          task={item}
-          onComplete={() => completeTask(item.id)}
-          onDelete={() => deleteTask(item.id)}
-        />
-      )}
-      ListEmptyComponent={emptyComponent}
-    />
+    <View style={{ flex: 1, backgroundColor: styles.list.backgroundColor }}>
+      <FlatList
+        data={filteredAndSorted}
+        keyExtractor={(item) => item.id}
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={header}
+        renderItem={({ item }) => (
+          <TaskItem
+            task={item}
+            onComplete={() => completeTask(item.id)}
+            onDelete={() => deleteTask(item.id)}
+          />
+        )}
+        ListEmptyComponent={emptyComponent}
+      />
+      {filterModal}
+    </View>
   );
 }
 
@@ -423,24 +415,26 @@ const makeStyles = (t) => StyleSheet.create({
   activeBadge:     { marginLeft: 8, backgroundColor: t.green, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
   activeBadgeText: { fontSize: 11, fontWeight: "700", color: "#ffffff" },
 
-  filterSection: { marginBottom: 12 },
-  filterTopRow:  { flexDirection: "row", alignItems: "center", gap: 8 },
-  chipsScroll:   { flexDirection: "row", gap: 6, paddingRight: 4 },
-
-  chip:          { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1.5, borderColor: t.border, backgroundColor: t.bgInput },
-  chipText:      { fontSize: 12, fontWeight: "600", color: t.textMuted },
+  chip:          { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: t.border, backgroundColor: t.bgInput },
+  chipText:      { fontSize: 13, fontWeight: "600", color: t.textMuted },
   chipTextActive:{ color: "#ffffff" },
 
-  sortBtn:          { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1.5, borderColor: t.border, backgroundColor: t.bgInput, flexShrink: 0 },
-  sortBtnActive:    { borderColor: t.greenMid, backgroundColor: t.greenSoft },
-  sortBtnText:      { fontSize: 12, fontWeight: "600", color: t.textMuted },
-  sortBtnTextActive:{ color: t.green },
+  openFilterBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: t.greenSoft, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: t.greenMid },
+  openFilterText: { fontSize: 13, fontWeight: "700", color: t.green },
 
-  sortDropdown:         { backgroundColor: t.bgCard, borderRadius: 14, marginTop: 8, paddingVertical: 4, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6, borderWidth: 1, borderColor: t.borderLight },
-  sortOption:           { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 11 },
-  sortOptionActive:     { backgroundColor: t.greenSoft },
-  sortOptionText:       { fontSize: 14, fontWeight: "600", color: t.text },
-  sortOptionTextActive: { color: t.green, fontWeight: "700" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  modalContent: { backgroundColor: t.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, maxHeight: "85%" },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+  modalTitle: { fontSize: 20, fontWeight: "800", color: t.text, letterSpacing: -0.3 },
+  modalScroll: { paddingBottom: 20 },
+  modalSectionTitle: { fontSize: 15, fontWeight: "700", color: t.textSub, marginBottom: 12, marginTop: 8 },
+  modalChipsWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
+  
+  modalFooter: { flexDirection: "row", gap: 12, paddingTop: 16, borderTopWidth: 1, borderColor: t.borderLight },
+  modalClearBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: t.bgInput, alignItems: "center", borderWidth: 1, borderColor: t.border },
+  modalClearText: { fontSize: 15, fontWeight: "600", color: t.textSub },
+  modalApplyBtn: { flex: 2, paddingVertical: 14, borderRadius: 16, backgroundColor: t.green, alignItems: "center" },
+  modalApplyText: { fontSize: 15, fontWeight: "700", color: "#ffffff" },
 
   resultsRow:      { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10, marginBottom: 2 },
   resultsText:     { fontSize: 12, fontWeight: "600", color: t.textMuted },
